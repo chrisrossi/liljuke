@@ -67,9 +67,7 @@ device.  Make ~/.asoundrc look like this::
         card 1
     }
 
-Set hostname::
-
-    $ sudo hostname liljuke
+Set hostname to 'liljuke' by editing /etc/hostname.
 
 Add siracusa to /etc/hosts::
 
@@ -96,11 +94,15 @@ Add siracusa to ~/.ssh/config::
 
 Add sshfs for siracusa to /etc/fstab::
 
-    sshfs#chris@siracusa:Music /home/pi/music fuse comment=sshfs,noauto,users,uid=1000,gid=1000,reconnect,BatchMode=yes 0 0
+    sshfs#chris@siracusa:Music /home/pi/siracusa fuse comment=sshfs,noauto,users,uid=1000,gid=1000,reconnect,BatchMode=yes 0 0
 
 Add `pi` user to `fuse` group::
 
     $ sudo usermod -a -G fuse pi
+
+Create mount point for siracusa::
+
+    $ mkdir ~/siracusa
 
 Log out and log back in for change to take effect.  In /etc/fuse.conf,
 uncomment `user_allow_other` line.
@@ -240,3 +242,13 @@ Make sure root can execute::
 
     sudo chmod 755 /etc/network/if-up.d/mountsshfs /etc/network/if-down.d/umountsshfs
     sudo chown root:root /etc/network/if-up.d/mountsshfs /etc/network/if-down.d/umountsshfs
+
+Start music collection::
+
+    $ cd ~
+    $ mkdir music
+    $ touch music/.liljuke
+
+Copy albums into music folder.  Each album must be in its own folder and have
+some sort of detectable artwork.  Albums can be nested arbitrarily deeply, so
+you can have artist folders, etc...

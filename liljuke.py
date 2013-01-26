@@ -48,15 +48,16 @@ class LilJuke(object):
 
     def scan_albums(self, folder, albums):
         visited = set([album.path for album in albums])
-        def visit(path):
+        def visit(path, include):
             if path in visited:
                 return
             files = os.listdir(path)
+            include = include or '.liljuke' in files
             album = None
             for fname in files:
                 ext = os.path.splitext(fname.lower())[1]
                 if ext in ('.flac', '.ogg', '.mp3'):
-                    if os.path.exists(os.path.join(path, '.liljuke')):
+                    if include:
                         album = Album()
                     break
 
@@ -97,9 +98,9 @@ class LilJuke(object):
                 for fname in files:
                     child = os.path.join(path, fname)
                     if os.path.isdir(child):
-                        visit(child)
+                        visit(child, include)
 
-        visit(folder)
+        visit(folder, False)
         albums.sort(key=Album.sort_key, reverse=True)
 
     def run(self, fullscreen):
