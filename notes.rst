@@ -51,8 +51,10 @@ Then restart.
 
 Install following packages::
 
+    git
     moc
     moc-ffmpeg-plugin
+    python-mutagen
     sshfs
 
 USB sound interface needs to be default, since moc only works with default alsa
@@ -252,3 +254,7 @@ Start music collection::
 Copy albums into music folder.  Each album must be in its own folder and have
 some sort of detectable artwork.  Albums can be nested arbitrarily deeply, so
 you can have artist folders, etc...
+
+Install liljuke software::
+
+    $ git clone git@github.com:chrisrossi/liljuke.git

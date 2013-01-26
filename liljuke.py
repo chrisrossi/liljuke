@@ -110,7 +110,7 @@ class LilJuke(object):
         if fullscreen:
             self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
         else:
-            self.screen = pygame.display.set_mode((520, 390))
+            self.screen = pygame.display.set_mode((656, 416))
         self.set_album(0)
         pygame.time.set_timer(pygame.USEREVENT, 1000)
         running = True
