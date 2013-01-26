@@ -231,9 +231,9 @@ class LilJuke(object):
         if self.state in (self.PLAYING, self.PAUSED):
             # Draw green triangle for "PLAY" state
             width, height = screen.get_size()
-            top = height / 20
-            left = width - width / 6
-            l = width / 12
+            top = height / 10
+            left = width - width / 4
+            l = width / 6
             points = [(left, top), (left, top + l),
                       (left + int(0.86 * l), top + l/2)]
             color = GREEN if self.state == self.PLAYING else YELLOW
