@@ -12,12 +12,19 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.id3 import ID3
 from mutagen.easyid3 import EasyID3
 
+
 BACKGROUND = (0, 0, 0)
+GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
+TEXT = (255, 255, 255)
+
+PAST_PENALTY = 0.95
 
 
 class LilJuke(object):
     IDLE = 0
     PLAYING = 1
+    PAUSED = 2
 
     def __init__(self, folder):
         print "Initializing..."
@@ -104,6 +111,7 @@ class LilJuke(object):
         else:
             self.screen = pygame.display.set_mode((520, 390))
         self.set_album(0)
+        pygame.time.set_timer(pygame.USEREVENT, 1000)
         running = True
         while running:
             for event in pygame.event.get():
@@ -116,6 +124,9 @@ class LilJuke(object):
                         self.jog(-1)
                     elif event.unicode == u' ':
                         self.button()
+
+                elif event.type == pygame.USEREVENT:
+                    self.poll()
 
             pygame.time.wait(50)
 
@@ -135,12 +146,12 @@ class LilJuke(object):
             # Height is limiting factor, scale to height
             scale_h = screen_h
             scale_w = int(scale_h * cover_aspect)
-        scaled = pygame.transform.smoothscale(cover, (scale_w, scale_h))
-        self.screen.fill(BACKGROUND)
-        self.screen.blit(scaled, scaled.get_rect())
-        pygame.display.flip()
+        self.cover = pygame.transform.smoothscale(cover, (scale_w, scale_h))
+        self.draw()
 
     def jog(self, i):
+        if self.state == self.PAUSED:
+            self.stop()
         if self.state == self.IDLE:
             self.set_album((self.album + i) % len(self.albums))
         elif self.state == self.PLAYING:
@@ -152,22 +163,89 @@ class LilJuke(object):
     def button(self):
         if self.state == self.IDLE:
             self.play()
-        else:
-            self.stop()
+        elif self.state == self.PLAYING:
+            self.pause()
+        elif self.state == self.PAUSED:
+            self.unpause()
+
+    def poll(self):
+        if self.state == self.PLAYING:
+            mocp_state = subprocess.check_output(['mocp', '--info'])
+            if 'PLAY' in mocp_state:
+                path = mocp_state.split('\n')[1]
+                assert path.startswith('File: ')
+                path = path[6:]
+                album = self.albums[self.album]
+                for track in album.tracks:
+                    if track.path == path:
+                        if self.tracknum != track.tracknum:
+                            self.tracknum = track.tracknum
+                            self.draw()
+            else:
+                # Album finished
+                self.finish_play()
 
     def play(self):
-        print 'QUEUEING'
         subprocess.check_call(['mocp', '--clear'])
         tracks = [track.path for track in self.albums[self.album].tracks]
         subprocess.check_call(['mocp', '--append'] + tracks)
-        print 'PLAY!'
         subprocess.check_call(['mocp', '--play'])
+        self.tracknum = 1
         self.state = self.PLAYING
+        self.draw()
+
+    def pause(self):
+        subprocess.check_call(['mocp', '--pause'])
+        self.state = self.PAUSED
+        self.draw()
+
+    def unpause(self):
+        subprocess.check_call(['mocp', '--unpause'])
+        self.state = self.PLAYING
+        self.draw()
 
     def stop(self):
-        print 'STOP!'
         subprocess.check_call(['mocp', '--stop'])
         self.state = self.IDLE
+        self.draw()
+
+    def finish_play(self):
+        albums = self.albums
+        # Plays in the past don't count as much as recent plays
+        for album in albums:
+            album.plays *= PAST_PENALTY
+        album = self.albums[self.album]
+        album.plays += 1
+        albums.sort(key=Album.sort_key, reverse=True)
+        self.save()
+        self.album = albums.index(album)
+        self.state = self.IDLE
+        self.draw()
+
+    def draw(self):
+        screen = self.screen
+        screen.fill(BACKGROUND)
+        screen.blit(self.cover, self.cover.get_rect())
+
+        if self.state in (self.PLAYING, self.PAUSED):
+            # Draw green triangle for "PLAY" state
+            width, height = screen.get_size()
+            top = height / 20
+            left = width - width / 6
+            l = width / 12
+            points = [(left, top), (left, top + l),
+                      (left + int(0.86 * l), top + l/2)]
+            color = GREEN if self.state == self.PLAYING else YELLOW
+            pygame.draw.polygon(screen, color, points)
+
+            font = pygame.font.SysFont('Arial', l, True)
+            tile = font.render(str(self.tracknum), True, TEXT)
+            rect = tile.get_rect()
+            rect.bottom = height - height / 20
+            rect.left = left
+            screen.blit(tile, rect)
+
+        pygame.display.flip()
 
 
 class Album(object):
@@ -217,7 +295,6 @@ class Track(object):
 
     def sort_key(self):
         return self.discnum, self.tracknum, self.path
-
 
 
 def get_track_data(path, fname, ext):
