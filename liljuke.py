@@ -12,6 +12,8 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.id3 import ID3
 from mutagen.easyid3 import EasyID3
 
+BACKGROUND = (0, 0, 0)
+
 
 class LilJuke(object):
     IDLE = 0
@@ -120,9 +122,22 @@ class LilJuke(object):
     def set_album(self, i):
         self.album = i
         album = self.albums[i]
-        size = self.screen.get_size()
+        screen_w, screen_h = self.screen.get_size()
+        screen_aspect = float(screen_w) / screen_h
         cover = pygame.image.load(album.cover).convert()
-        pygame.transform.smoothscale(cover, size, self.screen)
+        cover_w, cover_h = cover.get_size()
+        cover_aspect = float(cover_w) / cover_h
+        if cover_aspect > screen_aspect:
+            # Width is limiting factor, scale to width
+            scale_w = screen_w
+            scale_h = int(scale_w / cover_aspect)
+        else:
+            # Height is limiting factor, scale to height
+            scale_h = screen_h
+            scale_w = int(scale_h * cover_aspect)
+        scaled = pygame.transform.smoothscale(cover, (scale_w, scale_h))
+        self.screen.fill(BACKGROUND)
+        self.screen.blit(scaled, scaled.get_rect())
         pygame.display.flip()
 
     def jog(self, i):
