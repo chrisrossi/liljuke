@@ -19,6 +19,7 @@ YELLOW = (255, 255, 0)
 TEXT = (255, 255, 255)
 
 PAST_PENALTY = 0.95
+RESCAN_INTERVAL = 300 # 5 minutes
 
 
 class LilJuke(object):
@@ -102,6 +103,7 @@ class LilJuke(object):
 
         visit(folder, False)
         albums.sort(key=Album.sort_key, reverse=True)
+        self.last_scan = time.time()
 
     def run(self, fullscreen):
         print "Running..."
@@ -186,6 +188,12 @@ class LilJuke(object):
             else:
                 # Album finished
                 self.finish_play()
+
+        else:
+            now = time.time()
+            if now - self.last_scan > RESCAN_INTERVAL:
+                self.scan_albums(self.folder, self.albums)
+                self.save()
 
     def play(self):
         subprocess.check_call(['mocp', '--clear'])
