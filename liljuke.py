@@ -147,7 +147,7 @@ class LilJuke(object):
             # Height is limiting factor, scale to height
             scale_h = screen_h
             scale_w = int(scale_h * cover_aspect)
-        self.cover = pygame.transform.smoothscale(cover, (scale_w, scale_h))
+        self.cover = pygame.transform.scale(cover, (scale_w, scale_h))
         self.draw()
 
     def jog(self, i):
