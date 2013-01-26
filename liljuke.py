@@ -141,7 +141,13 @@ class LilJuke(object):
         pygame.display.flip()
 
     def jog(self, i):
-        self.set_album((self.album + i) % len(self.albums))
+        if self.state == self.IDLE:
+            self.set_album((self.album + i) % len(self.albums))
+        elif self.state == self.PLAYING:
+            if i > 0:
+                subprocess.check_call(['mocp', '--next'])
+            else:
+                subprocess.check_call(['mocp', '--previous'])
 
     def button(self):
         if self.state == self.IDLE:
