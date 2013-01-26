@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import json
 import os
+import subprocess
 import sys
 import time
 
@@ -13,6 +14,8 @@ from mutagen.easyid3 import EasyID3
 
 
 class LilJuke(object):
+    IDLE = 0
+    PLAYING = 1
 
     def __init__(self, folder):
         print "Initializing..."
@@ -26,6 +29,8 @@ class LilJuke(object):
 
         self.scan_albums(folder, self.albums)
         self.save()
+
+        self.state = self.IDLE
 
     def save(self):
         data = [album.as_json() for album in self.albums]
@@ -88,15 +93,61 @@ class LilJuke(object):
         visit(folder)
         albums.sort(key=Album.sort_key, reverse=True)
 
-    def run(self):
+    def run(self, fullscreen):
         print "Running..."
         pygame.init()
-        screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+        subprocess.call(['mocp', '--server'])
+        if fullscreen:
+            self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((520, 390))
+        self.set_album(0)
         running = True
         while running:
             for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN and event.unicode == u'q':
-                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.unicode == u'q':
+                        running = False
+                    elif event.key == 275:
+                        self.jog(1)
+                    elif event.key == 276:
+                        self.jog(-1)
+                    elif event.unicode == u' ':
+                        self.button()
+
+            pygame.time.wait(50)
+
+    def set_album(self, i):
+        self.album = i
+        album = self.albums[i]
+        size = self.screen.get_size()
+        cover = pygame.image.load(album.cover).convert()
+        pygame.transform.smoothscale(cover, size, self.screen)
+        pygame.display.flip()
+
+    def jog(self, i):
+        self.set_album((self.album + i) % len(self.albums))
+
+    def button(self):
+        if self.state == self.IDLE:
+            self.play()
+        else:
+            self.stop()
+
+    def play(self):
+        print 'QUEUEING'
+        subprocess.check_call(['mocp', '--clear'])
+        tracks = [track.path for track in self.albums[self.album].tracks]
+        subprocess.check_call(['mocp', '--append'] + tracks)
+        print 'PLAY!'
+        subprocess.check_call(['mocp', '--play'])
+        self.state = self.PLAYING
+
+    def stop(self):
+        print 'STOP!'
+        subprocess.check_call(['mocp', '--stop'])
+        self.state = self.IDLE
+
 
 class Album(object):
     properties = ('added', 'plays', 'path', 'cover')
@@ -220,4 +271,4 @@ IMAGE_TYPES = {
 if __name__ == '__main__':
     folder = sys.argv[1]
     assert os.path.isdir(folder)
-    LilJuke(os.path.abspath(folder)).run()
+    LilJuke(os.path.abspath(folder)).run(len(sys.argv) > 2)
