@@ -4,6 +4,8 @@ import os
 import sys
 import time
 
+import pygame
+
 from mutagen.flac import FLAC
 from mutagen.oggvorbis import OggVorbis
 from mutagen.id3 import ID3
@@ -13,6 +15,7 @@ from mutagen.easyid3 import EasyID3
 class LilJuke(object):
 
     def __init__(self, folder):
+        print "Initializing..."
         self.folder = folder
         self.dbfile = dbfile = os.path.join(folder, '.liljuke.db')
         if os.path.exists(dbfile):
@@ -39,7 +42,8 @@ class LilJuke(object):
             for fname in files:
                 ext = os.path.splitext(fname.lower())[1]
                 if ext in ('.flac', '.ogg', '.mp3'):
-                    album = Album()
+                    if os.path.exists(os.path.join(path, '.liljuke')):
+                        album = Album()
                     break
 
             if album:
@@ -80,12 +84,19 @@ class LilJuke(object):
                     child = os.path.join(path, fname)
                     if os.path.isdir(child):
                         visit(child)
-                    else:
-                        print "WTF?", child
 
         visit(folder)
         albums.sort(key=Album.sort_key, reverse=True)
 
+    def run(self):
+        print "Running..."
+        pygame.init()
+        screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.unicode == u'q':
+                    running = False
 
 class Album(object):
     properties = ('added', 'plays', 'path', 'cover')
@@ -139,7 +150,7 @@ class Track(object):
 
 def get_track_data(path, fname, ext):
     tags = CODECS[ext](path)
-    discnum = number(tags.get('discnumber', '1'))
+    discnum = number(tags.get('discnumber'), 1)
     tracknum = tags.get('tracknumber')
     if not tracknum:
         i = 0
@@ -174,14 +185,21 @@ def extract_cover(path):
         return cover_path
 
 
-def number(s):
+_marker = object()
+
+
+def number(s, default=_marker):
     """
     Yes, mutagen is this annoying.
     """
+    if not s and default is not _marker:
+        return default
     if isinstance(s, list):
         s = s[0]
     if '/' in s:
         s, total = s.split('/')
+    if not s and default is not _marker:
+        return default
     return int(s)
 
 
@@ -202,4 +220,4 @@ IMAGE_TYPES = {
 if __name__ == '__main__':
     folder = sys.argv[1]
     assert os.path.isdir(folder)
-    LilJuke(os.path.abspath(folder))
+    LilJuke(os.path.abspath(folder)).run()
