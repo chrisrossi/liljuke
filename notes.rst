@@ -26,8 +26,8 @@ http://www.raspberrypi.org/downloads
 
 (Used 2012-12-16)
 
-At startup, expanded filesystem to fill disk, and turned on sshd, and install 
-upgrades.
+At startup, expanded filesystem to fill disk, and turned on sshd, install
+upgrades, and enable boot directly to desktop.
 
 Then login as pi/raspberry and setup wireless by editing 
 /etc/network/interfaces::
@@ -258,3 +258,13 @@ you can have artist folders, etc...
 Install liljuke software::
 
     $ git clone git@github.com:chrisrossi/liljuke.git
+
+Get music player to start automatically::
+
+    $ mkdir ~/.config/autostart
+
+Make ~/.config/autostart/liljuke.desktop look like this::
+
+    [Desktop Entry]
+    Type = Application
+    Exec = python /home/pi/liljuke/liljuke.py /home/pi/music fullscreen
