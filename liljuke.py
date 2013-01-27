@@ -116,12 +116,11 @@ class LilJuke(object):
         pygame.mouse.set_visible(False)
         self.set_album(0)
         pygame.time.set_timer(pygame.USEREVENT, 1000)
-        running = True
-        while running:
+        while True:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
                     if event.unicode == u'q':
-                        running = False
+                        sys.exit(0)
                     elif event.key == 275:
                         self.jog(1)
                     elif event.key == 276:
@@ -135,6 +134,8 @@ class LilJuke(object):
             pygame.time.wait(50)
 
     def set_album(self, i):
+        self.screen.fill(BACKGROUND)
+        pygame.display.flip()
         self.album = i
         album = self.albums[i]
         screen_w, screen_h = self.screen.get_size()
@@ -159,6 +160,8 @@ class LilJuke(object):
         if self.state == self.IDLE:
             self.set_album((self.album + i) % len(self.albums))
         elif self.state == self.PLAYING:
+            self.tracknum = None
+            self.draw()
             if i > 0:
                 subprocess.check_call(['mocp', '--next'])
             else:
@@ -196,30 +199,32 @@ class LilJuke(object):
                 self.save()
 
     def play(self):
+        self.tracknum = 1
+        self.state = self.PLAYING
+        self.draw()
         subprocess.check_call(['mocp', '--clear'])
         tracks = [track.path for track in self.albums[self.album].tracks]
         subprocess.check_call(['mocp', '--append'] + tracks)
         subprocess.check_call(['mocp', '--play'])
-        self.tracknum = 1
-        self.state = self.PLAYING
-        self.draw()
 
     def pause(self):
-        subprocess.check_call(['mocp', '--pause'])
         self.state = self.PAUSED
         self.draw()
+        subprocess.check_call(['mocp', '--pause'])
 
     def unpause(self):
-        subprocess.check_call(['mocp', '--unpause'])
         self.state = self.PLAYING
         self.draw()
+        subprocess.check_call(['mocp', '--unpause'])
 
     def stop(self):
-        subprocess.check_call(['mocp', '--stop'])
         self.state = self.IDLE
         self.draw()
+        subprocess.check_call(['mocp', '--stop'])
 
     def finish_play(self):
+        self.state = self.IDLE
+        self.draw()
         albums = self.albums
         # Plays in the past don't count as much as recent plays
         for album in albums:
@@ -229,8 +234,6 @@ class LilJuke(object):
         albums.sort(key=Album.sort_key, reverse=True)
         self.save()
         self.album = albums.index(album)
-        self.state = self.IDLE
-        self.draw()
 
     def draw(self):
         screen = self.screen
@@ -248,12 +251,13 @@ class LilJuke(object):
             color = GREEN if self.state == self.PLAYING else YELLOW
             pygame.draw.polygon(screen, color, points)
 
-            font = pygame.font.SysFont('Arial', l, True)
-            tile = font.render(str(self.tracknum), True, TEXT)
-            rect = tile.get_rect()
-            rect.bottom = height - height / 20
-            rect.left = left
-            screen.blit(tile, rect)
+            if self.tracknum:
+                font = pygame.font.SysFont('Arial', l, True)
+                tile = font.render(str(self.tracknum), True, TEXT)
+                rect = tile.get_rect()
+                rect.bottom = height - height / 20
+                rect.left = left
+                screen.blit(tile, rect)
 
         pygame.display.flip()
 
