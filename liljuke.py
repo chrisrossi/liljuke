@@ -43,6 +43,7 @@ class LilJuke(object):
         self.save()
 
         self.state = self.IDLE
+        self.chill_until = 0
 
     def save(self):
         data = [album.as_json() for album in self.albums]
@@ -117,12 +118,7 @@ class LilJuke(object):
             self.screen = pygame.display.set_mode((656, 416))
         pygame.mouse.set_visible(False)
         self.set_album(0)
-        def poll_loop():
-            while True:
-                print 'poll'
-                time.sleep(POLL_INTERVAL)
-                self.poll()
-        poll_thread = threading.Thread(target=poll_loop)
+        poll_thread = threading.Thread(target=self.poll)
         poll_thread.daemon = True
         poll_thread.start()
         while True:
@@ -160,17 +156,22 @@ class LilJuke(object):
         self.draw()
 
     def jog(self, i):
+        self.chill_out()
         if self.state == self.PAUSED:
             self.stop()
         if self.state == self.IDLE:
             self.set_album((self.album + i) % len(self.albums))
         elif self.state == self.PLAYING:
-            self.tracknum = None
-            self.draw()
-            if i > 0:
-                subprocess.check_call(['mocp', '--next'])
+            album = self.albums[self.album]
+            next_track = self.tracknum + i
+            if next_track == 0 or next_track > len(album.tracks):
+                self.stop()
             else:
-                subprocess.check_call(['mocp', '--previous'])
+                self.tracknum = next_track
+                self.draw()
+                direction = '--next' if i > 0 else '--previous'
+                for _ in xrange(abs(i)):
+                    subprocess.check_call(['mocp', direction])
 
     def button(self):
         if self.state == self.IDLE:
@@ -180,30 +181,39 @@ class LilJuke(object):
         elif self.state == self.PAUSED:
             self.unpause()
 
-    def poll(self):
-        if self.state == self.PLAYING:
-            mocp_state = subprocess.check_output(['mocp', '--info'])
-            if 'PLAY' in mocp_state:
-                path = mocp_state.split('\n')[1]
-                assert path.startswith('File: ')
-                path = path[6:]
-                album = self.albums[self.album]
-                for track in album.tracks:
-                    if track.path == path:
-                        if self.tracknum != track.tracknum:
-                            self.tracknum = track.tracknum
-                            self.draw()
-            else:
-                # Album finished
-                self.finish_play()
+    def chill_out(self):
+        # tell poll to chill out for five seconds
+        self.chill_until = time.time() + 5
 
-        else:
+    def poll(self):
+        while True:
+            time.sleep(POLL_INTERVAL)
             now = time.time()
-            if now - self.last_scan > RESCAN_INTERVAL:
-                self.scan_albums(self.folder, self.albums)
-                self.save()
+            if now < self.chill_until:
+                continue
+            if self.state == self.PLAYING:
+                mocp_state = subprocess.check_output(['mocp', '--info'])
+                if 'PLAY' in mocp_state:
+                    path = mocp_state.split('\n')[1]
+                    assert path.startswith('File: ')
+                    path = path[6:]
+                    album = self.albums[self.album]
+                    for track in album.tracks:
+                        if track.path == path:
+                            if self.tracknum != track.tracknum:
+                                self.tracknum = track.tracknum
+                                self.draw()
+                else:
+                    # Album finished
+                    self.finish_play()
+
+            else:
+                if now - self.last_scan > RESCAN_INTERVAL:
+                    self.scan_albums(self.folder, self.albums)
+                    self.save()
 
     def play(self):
+        self.chill_out()
         self.tracknum = 1
         self.state = self.PLAYING
         self.draw()
@@ -213,16 +223,19 @@ class LilJuke(object):
         subprocess.check_call(['mocp', '--play'])
 
     def pause(self):
+        self.chill_out()
         self.state = self.PAUSED
         self.draw()
         subprocess.check_call(['mocp', '--pause'])
 
     def unpause(self):
+        self.chill_out()
         self.state = self.PLAYING
         self.draw()
         subprocess.check_call(['mocp', '--unpause'])
 
     def stop(self):
+        self.chill_out()
         self.state = self.IDLE
         self.draw()
         subprocess.check_call(['mocp', '--stop'])
