@@ -20,7 +20,7 @@ YELLOW = (255, 255, 0)
 TEXT = (255, 255, 255)
 
 PAST_PENALTY = 0.95
-POLL_INTERVAL = 1 # second
+POLL_INTERVAL = 2 # second
 RESCAN_INTERVAL = 300 # 5 minutes
 
 
@@ -182,8 +182,8 @@ class LilJuke(object):
             self.unpause()
 
     def chill_out(self):
-        # tell poll to chill out for five seconds
-        self.chill_until = time.time() + 5
+        # tell poll to chill out for twenty seconds
+        self.chill_until = time.time() + 20
 
     def poll(self):
         while True:
@@ -193,6 +193,8 @@ class LilJuke(object):
                 continue
             if self.state == self.PLAYING:
                 mocp_state = subprocess.check_output(['mocp', '--info'])
+                if now < self.chill_until:
+                    continue
                 if 'PLAY' in mocp_state:
                     path = mocp_state.split('\n')[1]
                     assert path.startswith('File: ')
