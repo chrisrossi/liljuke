@@ -118,6 +118,7 @@ class LilJuke(object):
         pygame.time.set_timer(pygame.USEREVENT, 1000)
         while True:
             for event in pygame.event.get():
+                print event
                 if event.type == pygame.KEYDOWN:
                     if event.unicode == u'q':
                         sys.exit(0)
@@ -131,7 +132,7 @@ class LilJuke(object):
                 elif event.type == pygame.USEREVENT:
                     self.poll()
 
-            pygame.time.wait(50)
+            #pygame.time.wait(50)
 
     def set_album(self, i):
         self.screen.fill(BACKGROUND)
