@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 
 import pygame
@@ -19,6 +20,7 @@ YELLOW = (255, 255, 0)
 TEXT = (255, 255, 255)
 
 PAST_PENALTY = 0.95
+POLL_INTERVAL = 1 # second
 RESCAN_INTERVAL = 300 # 5 minutes
 
 
@@ -115,7 +117,14 @@ class LilJuke(object):
             self.screen = pygame.display.set_mode((656, 416))
         pygame.mouse.set_visible(False)
         self.set_album(0)
-        pygame.time.set_timer(pygame.USEREVENT, 1000)
+        def poll_loop():
+            while True:
+                print 'poll'
+                time.sleep(POLL_INTERVAL)
+                self.poll()
+        poll_thread = threading.Thread(target=poll_loop)
+        poll_thread.daemon = True
+        poll_thread.start()
         while True:
             for event in pygame.event.get():
                 print event
@@ -128,11 +137,6 @@ class LilJuke(object):
                         self.jog(-1)
                     elif event.unicode == u' ':
                         self.button()
-
-                elif event.type == pygame.USEREVENT:
-                    self.poll()
-
-            #pygame.time.wait(50)
 
     def set_album(self, i):
         self.screen.fill(BACKGROUND)
