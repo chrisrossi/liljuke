@@ -123,7 +123,6 @@ class LilJuke(object):
         poll_thread.start()
         while True:
             for event in pygame.event.get():
-                print event
                 if event.type == pygame.KEYDOWN:
                     if event.unicode == u'q':
                         sys.exit(0)
