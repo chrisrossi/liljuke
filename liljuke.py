@@ -146,8 +146,9 @@ class LilJuke(object):
             sc.acquire()
             while not sq:
                 sc.wait()
-            subprocess.call(sq.popleft())
+            args = sq.popleft()
             sc.release()
+            subprocess.call(args)
 
     def poll(self):
         while True:
