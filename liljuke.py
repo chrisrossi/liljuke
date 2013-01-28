@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import collections
 import json
 import os
 import subprocess
@@ -44,6 +45,8 @@ class LilJuke(object):
 
         self.state = self.IDLE
         self.chill_until = 0
+        self.shell_queue = collections.deque()
+        self.shell_condition = threading.Condition()
 
     def save(self):
         data = [album.as_json() for album in self.albums]
@@ -121,6 +124,9 @@ class LilJuke(object):
         poll_thread = threading.Thread(target=self.poll)
         poll_thread.daemon = True
         poll_thread.start()
+        shell_thread = threading.Thread(target=self.shell)
+        shell_thread.daemon = True
+        shell_thread.start()
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -132,6 +138,52 @@ class LilJuke(object):
                         self.jog(-1)
                     elif event.unicode == u' ':
                         self.button()
+
+    def shell(self):
+        sc = self.shell_condition
+        sq = self.shell_queue
+        while True:
+            sc.acquire()
+            while not sq:
+                sc.wait()
+            subprocess.call(sq.popleft())
+            sc.release()
+
+    def poll(self):
+        while True:
+            time.sleep(POLL_INTERVAL)
+            now = time.time()
+            if now < self.chill_until:
+                continue
+            if self.state == self.PLAYING:
+                mocp_state = subprocess.check_output(['mocp', '--info'])
+                if now < self.chill_until:
+                    continue
+                if 'PLAY' in mocp_state:
+                    path = mocp_state.split('\n')[1]
+                    assert path.startswith('File: ')
+                    path = path[6:]
+                    album = self.albums[self.album]
+                    for track in album.tracks:
+                        if track.path == path:
+                            if self.tracknum != track.tracknum:
+                                self.tracknum = track.tracknum
+                                self.draw()
+                else:
+                    # Album finished
+                    self.finish_play()
+
+            else:
+                if now - self.last_scan > RESCAN_INTERVAL:
+                    self.scan_albums(self.folder, self.albums)
+                    self.save()
+
+    def do(self, it):
+        sc = self.shell_condition
+        sc.acquire()
+        self.shell_queue.append(it)
+        sc.notify()
+        sc.release()
 
     def set_album(self, i):
         self.screen.fill(BACKGROUND)
@@ -170,7 +222,7 @@ class LilJuke(object):
                 self.draw()
                 direction = '--next' if i > 0 else '--previous'
                 for _ in xrange(abs(i)):
-                    subprocess.check_call(['mocp', direction])
+                    self.do(['mocp', direction])
 
     def button(self):
         if self.state == self.IDLE:
@@ -184,62 +236,33 @@ class LilJuke(object):
         # tell poll to chill out for twenty seconds
         self.chill_until = time.time() + 20
 
-    def poll(self):
-        while True:
-            time.sleep(POLL_INTERVAL)
-            now = time.time()
-            if now < self.chill_until:
-                continue
-            if self.state == self.PLAYING:
-                mocp_state = subprocess.check_output(['mocp', '--info'])
-                if now < self.chill_until:
-                    continue
-                if 'PLAY' in mocp_state:
-                    path = mocp_state.split('\n')[1]
-                    assert path.startswith('File: ')
-                    path = path[6:]
-                    album = self.albums[self.album]
-                    for track in album.tracks:
-                        if track.path == path:
-                            if self.tracknum != track.tracknum:
-                                self.tracknum = track.tracknum
-                                self.draw()
-                else:
-                    # Album finished
-                    self.finish_play()
-
-            else:
-                if now - self.last_scan > RESCAN_INTERVAL:
-                    self.scan_albums(self.folder, self.albums)
-                    self.save()
-
     def play(self):
         self.chill_out()
         self.tracknum = 1
         self.state = self.PLAYING
         self.draw()
-        subprocess.check_call(['mocp', '--clear'])
         tracks = [track.path for track in self.albums[self.album].tracks]
-        subprocess.check_call(['mocp', '--append'] + tracks)
-        subprocess.check_call(['mocp', '--play'])
+        self.do(['mocp', '--clear'])
+        self.do(['mocp', '--append'] + tracks)
+        self.do(['mocp', '--play'])
 
     def pause(self):
         self.chill_out()
         self.state = self.PAUSED
         self.draw()
-        subprocess.check_call(['mocp', '--pause'])
+        self.do(['mocp', '--pause'])
 
     def unpause(self):
         self.chill_out()
         self.state = self.PLAYING
         self.draw()
-        subprocess.check_call(['mocp', '--unpause'])
+        self.do(['mocp', '--unpause'])
 
     def stop(self):
         self.chill_out()
         self.state = self.IDLE
         self.draw()
-        subprocess.check_call(['mocp', '--stop'])
+        self.do(['mocp', '--stop'])
 
     def finish_play(self):
         self.state = self.IDLE
