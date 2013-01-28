@@ -128,16 +128,16 @@ class LilJuke(object):
         shell_thread.daemon = True
         shell_thread.start()
         while True:
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.unicode == u'q':
-                        sys.exit(0)
-                    elif event.key == 275:
-                        self.jog(1)
-                    elif event.key == 276:
-                        self.jog(-1)
-                    elif event.unicode == u' ':
-                        self.button()
+            event = pygame.event.wait()
+            if event.type == pygame.KEYDOWN:
+                if event.unicode == u'q':
+                    sys.exit(0)
+                elif event.key == 275:
+                    self.jog(1)
+                elif event.key == 276:
+                    self.jog(-1)
+                elif event.unicode == u' ':
+                    self.button()
 
     def shell(self):
         sc = self.shell_condition
