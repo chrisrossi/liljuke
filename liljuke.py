@@ -24,6 +24,8 @@ PAST_PENALTY = 0.95
 POLL_INTERVAL = 2 # second
 RESCAN_INTERVAL = 300 # 5 minutes
 
+SCREEN_SIZE = (656, 416)
+
 
 class LilJuke(object):
     IDLE = 0
@@ -33,7 +35,7 @@ class LilJuke(object):
     def __init__(self, folder):
         print "Initializing..."
         self.folder = folder
-        self.dbfile = dbfile = os.path.join(folder, '.liljuke.db')
+        self.dbfile = dbfile = os.path.join(folder, '.liljuke.d', 'liljuke.db')
         if os.path.exists(dbfile):
             self.albums = [Album.from_json(album) for album in
                            json.load(open(dbfile, 'rb'))]
@@ -50,6 +52,7 @@ class LilJuke(object):
 
     def save(self):
         data = [album.as_json() for album in self.albums]
+        mkfolder(self.dbfile)
         with open(self.dbfile, 'wb') as f:
             json.dump(data, f, indent=4)
 
@@ -93,10 +96,17 @@ class LilJuke(object):
                     print "Skipping %s, no album cover found" % path
                     return
 
+                scaled = os.path.join(
+                    folder, '.liljuke.d', 'art', relativeto(cover, folder))
+                if not os.path.exists(scaled):
+                    mkfolder(scaled)
+                    subprocess.check_call(['cp', cover, scaled])
+                    subprocess.check_call(
+                        ['mogrify', '-geometry', '%dx%d' % SCREEN_SIZE, scaled])
                 album.added = os.path.getmtime(album.tracks[0].path)
                 album.plays = 1
                 album.path = path
-                album.cover = cover
+                album.cover = scaled
                 albums.append(album)
                 print 'Added', album.path
                 self.save()
@@ -118,7 +128,7 @@ class LilJuke(object):
         if fullscreen:
             self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
         else:
-            self.screen = pygame.display.set_mode((656, 416))
+            self.screen = pygame.display.set_mode(SCREEN_SIZE)
         pygame.mouse.set_visible(False)
         self.set_album(0)
         poll_thread = threading.Thread(target=self.poll)
@@ -191,20 +201,7 @@ class LilJuke(object):
         pygame.display.flip()
         self.album = i
         album = self.albums[i]
-        screen_w, screen_h = self.screen.get_size()
-        screen_aspect = float(screen_w) / screen_h
-        cover = pygame.image.load(album.cover).convert()
-        cover_w, cover_h = cover.get_size()
-        cover_aspect = float(cover_w) / cover_h
-        if cover_aspect > screen_aspect:
-            # Width is limiting factor, scale to width
-            scale_w = screen_w
-            scale_h = int(scale_w / cover_aspect)
-        else:
-            # Height is limiting factor, scale to height
-            scale_h = screen_h
-            scale_w = int(scale_h * cover_aspect)
-        self.cover = pygame.transform.scale(cover, (scale_w, scale_h))
+        self.cover = pygame.image.load(album.cover).convert()
         self.draw()
 
     def jog(self, i):
@@ -407,6 +404,18 @@ def number(s, default=_marker):
     if not s and default is not _marker:
         return default
     return int(s)
+
+
+def mkfolder(path):
+    folder = os.path.dirname(path)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+
+def relativeto(path, to):
+    path = os.path.abspath(path)
+    assert path.startswith(to), '%s is not contained in ' % (path, to)
+    return path[len(to):].lstrip('/')
 
 
 MUSIC_EXTS = ('.flac', '.ogg', '.mp3')
