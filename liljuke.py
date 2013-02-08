@@ -14,6 +14,12 @@ from mutagen.oggvorbis import OggVorbis
 from mutagen.id3 import ID3
 from mutagen.easyid3 import EasyID3
 
+try:
+    import wiringpi
+except ImportError:
+    wiringpi = None
+
+POLL_GPIO = 25
 
 BACKGROUND = (0, 0, 0)
 GREEN = (0, 255, 0)
@@ -137,6 +143,10 @@ class LilJuke(object):
         shell_thread = threading.Thread(target=self.shell)
         shell_thread.daemon = True
         shell_thread.start()
+        if wiringpi is not None:
+            init_gpio()
+            pygame.time.set_timer(POLL_GPIO, 5)
+            knob = Knob()
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
@@ -148,6 +158,11 @@ class LilJuke(object):
                     self.jog(-1)
                 elif event.unicode == u' ':
                     self.button()
+
+            elif event.type == POLL_GPIO:
+                jog = knob.read()
+                if jog:
+                    self.jog(jog)
 
     def shell(self):
         sc = self.shell_condition
@@ -386,6 +401,47 @@ def extract_cover(path):
         with open(cover_path, 'wb') as f:
             f.write(cover.data)
         return cover_path
+
+
+class Knob(object):
+    pins = (22, 23, 24, 25)
+    max = 2**len(pins)
+
+    def __init__(self):
+        self.io = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_SYS)
+        self.state = self._read_state()
+
+    def _read_state(self):
+        state = 0
+        io = self.io
+        for pin in self.pins:
+            state = (state<<1) | (io.digitalRead(pin)^1)
+        return state
+
+    def read(self):
+        """
+        Negative is left, positive is right, 0 is no change.
+        """
+        prev = self.state
+        state = self._read_state()
+        if state == prev:
+            return 0
+
+        self.state = state
+        max = self.max
+
+        right = (state - prev) % max
+        left = (prev - state) % max
+        if left < right:
+            print 'KNOB left', prev, state, -left
+            return -left
+        print 'KNOB right', prev, state, right
+        return right
+        
+
+def init_gpio():
+    for pin in Knob.pins:
+        subprocess.check_call(['gpio', 'export', str(pin), 'in'])
 
 
 _marker = object()
