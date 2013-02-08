@@ -52,9 +52,12 @@ Then restart.
 Install following packages::
 
     git
+    imagemagick
     moc
     moc-ffmpeg-plugin
+    python-dev
     python-mutagen
+    python-setuptools
     sshfs
 
 USB sound interface needs to be default, since moc only works with default alsa
@@ -254,6 +257,19 @@ Start music collection::
 Copy albums into music folder.  Each album must be in its own folder and have
 some sort of detectable artwork.  Albums can be nested arbitrarily deeply, so
 you can have artist folders, etc...
+
+Install wiringpi::
+
+    $ git clone https://github.com/WiringPi/WiringPi-Python.git
+    $ cd WiringPi-Python
+    $ git submodule update --init
+    $ sudo python setup.py install
+    $ cd WiringPi/wiringPi/
+    $ make
+    $ sudo make install
+    $ cd ../gpio
+    $ make
+    $ sudo make install
 
 Install liljuke software::
 
