@@ -145,8 +145,10 @@ class LilJuke(object):
         shell_thread.start()
         if wiringpi is not None:
             init_gpio()
+            io = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_SYS)
             pygame.time.set_timer(POLL_GPIO, 5)
-            knob = Knob()
+            knob = Knob(io)
+            button = Button(io)
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
@@ -163,6 +165,8 @@ class LilJuke(object):
                 jog = knob.read()
                 if jog:
                     self.jog(jog)
+                if button.pressed():
+                    self.button()
 
     def shell(self):
         sc = self.shell_condition
@@ -407,8 +411,8 @@ class Knob(object):
     pins = (22, 23, 24, 25)
     max = 2**len(pins)
 
-    def __init__(self):
-        self.io = wiringpi.GPIO(wiringpi.GPIO.WPI_MODE_SYS)
+    def __init__(self, io):
+        self.io = io
         self.state = self._read_state()
 
     def _read_state(self):
@@ -433,15 +437,34 @@ class Knob(object):
         right = (state - prev) % max
         left = (prev - state) % max
         if left < right:
-            print 'KNOB left', prev, state, -left
             return -left
-        print 'KNOB right', prev, state, right
         return right
+        
+
+class Button(object):
+    pin = 4
+    debounce = 5 # milliseconds
+
+    def __init__(self, io):
+        self.io = io
+        self.last_press = 0
+        self.state = 0
+ 
+    def pressed(self):
+        prev = self.state
+        if prev and pygame.time.get_ticks() - self.last_press <= self.debounce:
+            return False
+        self.state = state = self.io.digitalRead(self.pin)
+        if not prev and state:
+            self.last_press = pygame.time.get_ticks()
+            return True
+        return False
         
 
 def init_gpio():
     for pin in Knob.pins:
         subprocess.check_call(['gpio', 'export', str(pin), 'in'])
+    subprocess.check_call(['gpio', 'export', str(Button.pin), 'in'])
 
 
 _marker = object()
