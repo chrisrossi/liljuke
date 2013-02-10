@@ -16,6 +16,7 @@ from mutagen.easyid3 import EasyID3
 
 try:
     import wiringpi
+    wiringpi # stfu pyflakes
 except ImportError:
     wiringpi = None
 
@@ -439,7 +440,7 @@ class Knob(object):
         if left < right:
             return -left
         return right
-        
+
 
 class Button(object):
     pin = 4
@@ -449,7 +450,7 @@ class Button(object):
         self.io = io
         self.last_press = 0
         self.state = 0
- 
+
     def pressed(self):
         prev = self.state
         if prev and pygame.time.get_ticks() - self.last_press <= self.debounce:
@@ -459,7 +460,7 @@ class Button(object):
             self.last_press = pygame.time.get_ticks()
             return True
         return False
-        
+
 
 def init_gpio():
     for pin in Knob.pins:
