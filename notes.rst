@@ -26,9 +26,17 @@ Preamp:
 phase inverter.
 
 1st stage, 47k load, 
-bias 1.0V grid, 75V/0.5mA plate
-Rk = 1.0V/0.5mA = 2k (use 2.2k)
-A = roughly 14 
+bias 1.0V grid, 85V/0.7mA plate
+Rk = 1.0V/0.7mA = 1428 (use 1.5k)
+A = roughly 17 
+
+Phase inverter, 47k+47k load,
+bias 1.0V, 0.5mA, 23.5V and 96.5V
+R5 and R6 need to divide down 85V plate voltage from previous stage to 22.5V
+grid bias voltage on phase inverter: 1.2M and 390K resistors
+
+Total current draw from preamp: 0.7mA + 0.5mA = 1.2mA.  To drop 30V from 150V 
+plate supply to 120V preamp supply, need 30V/1.2mA = 25k.  Use 22k.
 
 Software
 --------
