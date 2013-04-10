@@ -13,7 +13,7 @@ Amplifier
 ---------
 
 5902 Power Tubes PP
-Hammond 125C Output transformer wired for 1.5K:4
+Hammond 125C Output transformer wired for 8.8K:4
 
 Speaker:
 http://www.crutchfield.com/p_113KFC1093/Kenwood-KFC-1093PS.html?tp=102#details-tab
