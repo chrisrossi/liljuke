@@ -32,9 +32,10 @@ POLL_INTERVAL = 2 # second
 RESCAN_INTERVAL = 300 # 5 minutes
 
 SCREEN_SIZE = (656, 416)
-
+IDLE_TIMEOUT = 30
 
 class LilJuke(object):
+    ASLEEP = -1
     IDLE = 0
     PLAYING = 1
     PAUSED = 2
@@ -53,6 +54,7 @@ class LilJuke(object):
         self.save()
 
         self.state = self.IDLE
+        self.idle_since = time.time()
         self.chill_until = 0
         self.shell_queue = collections.deque()
         self.shell_condition = threading.Condition()
@@ -150,6 +152,7 @@ class LilJuke(object):
             pygame.time.set_timer(POLL_GPIO, 5)
             knob = Knob(io)
             button = Button(io)
+            self.heaters = Heaters(io)
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
@@ -163,11 +166,18 @@ class LilJuke(object):
                     self.button()
 
             elif event.type == POLL_GPIO:
-                jog = knob.read()
-                if jog:
-                    self.jog(jog)
-                if button.pressed():
-                    self.button()
+                if self.state == self.ASLEEP:
+                    if knob.read() or button.pressed():
+                        self.wake_up()
+                else:
+                    jog = knob.read()
+                    if jog:
+                        self.jog(jog)
+                    elif button.pressed():
+                        self.button()
+                    elif self.state == self.IDLE:
+                        if time.time() - self.idle_since > IDLE_TIMEOUT:
+                            self.fall_asleep()
 
     def shell(self):
         sc = self.shell_condition
@@ -230,6 +240,7 @@ class LilJuke(object):
             self.stop()
         if self.state == self.IDLE:
             self.set_album((self.album + i) % len(self.albums))
+            self.idle_since = time.time()
         elif self.state == self.PLAYING:
             album = self.albums[self.album]
             next_track = self.tracknum + i
@@ -279,11 +290,13 @@ class LilJuke(object):
     def stop(self):
         self.chill_out()
         self.state = self.IDLE
+        self.idle_since = time.time()
         self.draw()
         self.do(['mocp', '--stop'])
 
     def finish_play(self):
         self.state = self.IDLE
+        self.idle_since = time.time()
         self.draw()
         albums = self.albums
         # Plays in the past don't count as much as recent plays
@@ -294,6 +307,15 @@ class LilJuke(object):
         albums.sort(key=Album.sort_key, reverse=True)
         self.save()
         self.album = albums.index(album)
+
+    def fall_asleep(self):
+        self.state = self.ASLEEP
+        self.heaters.state = False
+
+    def wake_up(self):
+        self.state = self.IDLE
+        self.idle_since = time.time()
+        self.heaters.state = True
 
     def draw(self):
         screen = self.screen
@@ -432,6 +454,7 @@ class Knob(object):
         if state == prev:
             return 0
 
+        print state
         self.state = state
         max = self.max
 
@@ -449,7 +472,7 @@ class Button(object):
     def __init__(self, io):
         self.io = io
         self.last_press = 0
-        self.state = 0
+        self.state = self.io.digitalRead(self.pin)
 
     def pressed(self):
         prev = self.state
@@ -462,10 +485,33 @@ class Button(object):
         return False
 
 
+class Switch(object):
+
+    def __init__(self, io):
+        self.io = io
+        self.io.digitalWrite(self.pin, self.initial_state)
+        self.state = self.initial_state
+
+    @apply
+    def state():
+        def set(self, state):
+            self._state = state
+            self.io.digitalWrite(self.pin, not state)  # inverter buffer
+        def get(self):
+            return self._state
+        return property(get, set)
+
+
+class Heaters(Switch):
+    initial_state = True
+    pin = 27
+    
+
 def init_gpio():
     for pin in Knob.pins:
         subprocess.check_call(['gpio', 'export', str(pin), 'in'])
     subprocess.check_call(['gpio', 'export', str(Button.pin), 'in'])
+    subprocess.check_call(['gpio', 'export', str(Heaters.pin), 'out'])
 
 
 _marker = object()
