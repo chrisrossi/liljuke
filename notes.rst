@@ -2,20 +2,41 @@
 Power Supply
 ------------
 
-Hammond 270X or 270CAX
-240VAC or 250VAC, 5V 2A, 6.3V 1.5A or 2.5A
+Hammond 169PS 115V:115V 130mA or Edcor PWRC120V0.3A-1
+For B+
 
-Run logic (Raspberry PI, Arduino) from 5V
-TV from 6.3V
+Hammond 166N10 8.5V 4A for filaments, Raspberry Pi, TV
+
+Schematic: https://www.circuitlab.com/circuit/257y54/lil-juke-power-supply/
 
 Amplifier
 ---------
 
 5902 Power Tubes PP
-Hammond 125J Output transformer
+Hammond 125C Output transformer wired for 8.8K:4
 
-One speaker possibility:
+Speaker:
 http://www.crutchfield.com/p_113KFC1093/Kenwood-KFC-1093PS.html?tp=102#details-tab
+
+Input, worst case, 4V p-p.  Need about 40V p-p to fully drive power tubes if 
+they're deep in class AB (they won't be).  So preamp gain of 10 is fine.
+
+Preamp:
+6112 twin triode, unbypassed common cathode gain stage -> DC coupled cathodyne
+phase inverter.
+
+1st stage, 47k load, 
+bias 1.0V grid, 85V/0.7mA plate
+Rk = 1.0V/0.7mA = 1428 (use 1.5k)
+A = roughly 17 
+
+Phase inverter, 47k+47k load,
+bias 1.0V, 0.5mA, 23.5V and 96.5V
+R5 and R6 need to divide down 85V plate voltage from previous stage to 22.5V
+grid bias voltage on phase inverter: 1.2M and 390K resistors
+
+Total current draw from preamp: 0.7mA + 0.5mA = 1.2mA.  To drop 30V from 150V 
+plate supply to 120V preamp supply, need 30V/1.2mA = 25k.  Use 22k.
 
 Software
 --------
