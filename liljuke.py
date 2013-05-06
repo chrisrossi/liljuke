@@ -152,7 +152,8 @@ class LilJuke(object):
             pygame.time.set_timer(POLL_GPIO, 5)
             knob = Knob(io)
             button = Button(io)
-            self.heaters = Heaters(io)
+            self.tv = TV(io)
+            self.amp = Amp(io)
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
@@ -310,12 +311,14 @@ class LilJuke(object):
 
     def fall_asleep(self):
         self.state = self.ASLEEP
-        self.heaters.state = False
+        self.tv.state = False
+        self.amp.state = False
 
     def wake_up(self):
         self.state = self.IDLE
         self.idle_since = time.time()
-        self.heaters.state = True
+        self.tv.state = True
+        self.amp.state = True
 
     def draw(self):
         screen = self.screen
@@ -502,16 +505,22 @@ class Switch(object):
         return property(get, set)
 
 
-class Heaters(Switch):
+class TV(Switch):
     initial_state = True
     pin = 27
+    
+
+class Amp(Switch):
+    initial_state = True
+    pin = 18
     
 
 def init_gpio():
     for pin in Knob.pins:
         subprocess.check_call(['gpio', 'export', str(pin), 'in'])
     subprocess.check_call(['gpio', 'export', str(Button.pin), 'in'])
-    subprocess.check_call(['gpio', 'export', str(Heaters.pin), 'out'])
+    subprocess.check_call(['gpio', 'export', str(TV.pin), 'out'])
+    subprocess.check_call(['gpio', 'export', str(Amp.pin), 'out'])
 
 
 _marker = object()
