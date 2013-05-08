@@ -198,7 +198,10 @@ class LilJuke(object):
             if now < self.chill_until:
                 continue
             if self.state == self.PLAYING:
-                mocp_state = subprocess.check_output(['mocp', '--info'])
+                try:
+                    mocp_state = subprocess.check_output(['mocp', '--info'])
+                except:
+                    continue
                 if now < self.chill_until:
                     continue
                 if 'PLAY' in mocp_state:
