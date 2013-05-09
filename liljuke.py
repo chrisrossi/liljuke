@@ -32,7 +32,7 @@ POLL_INTERVAL = 2 # second
 RESCAN_INTERVAL = 300 # 5 minutes
 
 SCREEN_SIZE = (656, 416)
-IDLE_TIMEOUT = 30
+IDLE_TIMEOUT = 300  # 5 minutes
 
 class LilJuke(object):
     ASLEEP = -1
