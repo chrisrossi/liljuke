@@ -460,7 +460,6 @@ class Knob(object):
         if state == prev:
             return 0
 
-        print state
         self.state = state
         max = self.max
 
