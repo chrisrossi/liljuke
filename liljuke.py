@@ -34,7 +34,7 @@ RESCAN_INTERVAL = 300 # 5 minutes
 
 SCREEN_SIZE = (656, 416)
 IDLE_TIMEOUT = 300  # 5 minutes
-JOG_DELAY = 2 # Wait 2 POLL_JOG events before performing jog
+JOG_DELAY = 5 # Wait 5 POLL_JOG events before performing jog
 
 
 class LilJuke(object):
@@ -272,11 +272,11 @@ class LilJuke(object):
                 self.tracknum = next_track
                 self.draw()
                 self.jog_state.jog(i)
+                self.do(['mocp', '--pause'])
 
     def jog_track(self, i):
-        if abs(i) == 1:
-            direction = '--next' if i > 0 else '--previous'
-            self.do(['mocp', direction])
+        if i == 1:
+            self.do(['mocp', '--next'])
         else:
             self.play(self.tracknum)
 
@@ -483,7 +483,6 @@ class JogState(object):
 
     def tick(self):
         self.countdown -= 1
-        print 'JOGSTATE', self.amount, self.countdown
 
 
 class Knob(object):
