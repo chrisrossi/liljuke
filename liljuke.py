@@ -329,15 +329,20 @@ class LilJuke(object):
         screen.blit(self.cover, self.cover.get_rect())
 
         if self.state in (self.PLAYING, self.PAUSED):
-            # Draw green triangle for "PLAY" state
             width, height = screen.get_size()
             top = height / 10
             left = width - width / 4
             l = width / 6
-            points = [(left, top), (left, top + l),
-                      (left + int(0.86 * l), top + l/2)]
-            color = GREEN if self.state == self.PLAYING else YELLOW
-            pygame.draw.polygon(screen, color, points)
+            if self.state == self.PLAYING:
+                # Draw green triangle for "PLAY" state
+                points = [(left, top), (left, top + l),
+                          (left + int(0.86 * l), top + l/2)]
+                pygame.draw.polygon(screen, GREEN, points)
+            elif self.state == self.PAUSED:
+                # Draw yellow bars for "PAUSED" state
+                rect = pygame.Rect(left, top, l/3, l)
+                pygame.draw.rect(screen, YELLOW, rect)
+                pygame.draw.rect(screen, YELLOW, rect.move(2*l/3, 0))
 
             if self.tracknum:
                 font = pygame.font.SysFont('Arial', l, True)
@@ -510,12 +515,12 @@ class Switch(object):
 class TV(Switch):
     initial_state = True
     pin = 27
-    
+
 
 class Amp(Switch):
     initial_state = True
     pin = 18
-    
+
 
 def init_gpio():
     for pin in Knob.pins:
