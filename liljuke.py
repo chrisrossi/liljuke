@@ -274,9 +274,11 @@ class LilJuke(object):
                 self.jog_state.jog(i)
 
     def jog_track(self, i):
-        direction = '--next' if i > 0 else '--previous'
-        for _ in xrange(abs(i)):
+        if abs(i) == 1:
+            direction = '--next' if i > 0 else '--previous'
             self.do(['mocp', direction])
+        else:
+            self.play(self.tracknum)
 
     def button(self):
         if self.state == self.IDLE:
@@ -290,12 +292,14 @@ class LilJuke(object):
         # tell poll to chill out for twenty seconds
         self.chill_until = time.time() + 20
 
-    def play(self):
+    def play(self, tracknum=1):
         self.chill_out()
-        self.tracknum = 1
-        self.state = self.PLAYING
-        self.draw()
-        tracks = [track.path for track in self.albums[self.album].tracks]
+        if self.state != self.PLAYING or self.tracknum != tracknum:
+            self.tracknum = tracknum
+            self.state = self.PLAYING
+            self.draw()
+        tracks = [track.path for track in
+                  self.albums[self.album].tracks[tracknum-1:]]
         self.do(['mocp', '--clear'])
         self.do(['mocp', '--append'] + tracks)
         self.do(['mocp', '--play'])
