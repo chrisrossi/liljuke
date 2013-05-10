@@ -133,7 +133,14 @@ class LilJuke(object):
     def run(self, fullscreen):
         print "Running..."
         pygame.init()
-        subprocess.call(['mocp', '--server'])
+        mocpid = os.path.expanduser("~/.moc/pid")
+        if os.path.exists(mocpid):
+            proc = os.path.join('/proc', open(mocpid).read().strip())
+            if not os.path.exists(proc):
+                print "Removing stale moc pid file..."
+                os.remove(mocpid)
+        if not os.path.exists(mocpid):
+            subprocess.call(['mocp', '--server'])
         if fullscreen:
             self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
         else:
