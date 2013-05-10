@@ -21,6 +21,7 @@ except ImportError:
     wiringpi = None
 
 POLL_GPIO = 25
+POLL_JOG = 26
 
 BACKGROUND = (0, 0, 0)
 GREEN = (0, 255, 0)
@@ -33,6 +34,8 @@ RESCAN_INTERVAL = 300 # 5 minutes
 
 SCREEN_SIZE = (656, 416)
 IDLE_TIMEOUT = 300  # 5 minutes
+JOG_DELAY = 2 # Wait 2 POLL_JOG events before performing jog
+
 
 class LilJuke(object):
     ASLEEP = -1
@@ -58,6 +61,7 @@ class LilJuke(object):
         self.chill_until = 0
         self.shell_queue = collections.deque()
         self.shell_condition = threading.Condition()
+        self.jog_state = JogState()
 
     def save(self):
         data = [album.as_json() for album in self.albums]
@@ -161,6 +165,7 @@ class LilJuke(object):
             button = Button(io)
             self.tv = TV(io)
             self.amp = Amp(io)
+        pygame.time.set_timer(POLL_JOG, 100)
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
@@ -186,6 +191,12 @@ class LilJuke(object):
                     elif self.state == self.IDLE:
                         if time.time() - self.idle_since > IDLE_TIMEOUT:
                             self.fall_asleep()
+
+            elif event.type == POLL_JOG:
+                if self.state == self.PLAYING and self.jog_state:
+                    self.jog_track(self.jog_state.amount)
+                    self.jog_state.clear()
+                self.jog_state.tick()
 
     def shell(self):
         sc = self.shell_condition
@@ -260,9 +271,12 @@ class LilJuke(object):
             else:
                 self.tracknum = next_track
                 self.draw()
-                direction = '--next' if i > 0 else '--previous'
-                for _ in xrange(abs(i)):
-                    self.do(['mocp', direction])
+                self.jog_state.jog(i)
+
+    def jog_track(self, i):
+        direction = '--next' if i > 0 else '--previous'
+        for _ in xrange(abs(i)):
+            self.do(['mocp', direction])
 
     def button(self):
         if self.state == self.IDLE:
@@ -446,6 +460,26 @@ def extract_cover(path):
         with open(cover_path, 'wb') as f:
             f.write(cover.data)
         return cover_path
+
+
+class JogState(object):
+
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.amount = self.countdown = 0
+
+    def __nonzero__(self):
+        return self.amount and not self.countdown
+
+    def jog(self, amount):
+        self.amount += amount
+        self.countdown = JOG_DELAY
+
+    def tick(self):
+        self.countdown -= 1
+        print 'JOGSTATE', self.amount, self.countdown
 
 
 class Knob(object):
